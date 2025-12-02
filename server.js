@@ -71,8 +71,23 @@ sin explicaciones, sin bloques markdown.
 
     const json = await response.json();
 
+    // Log completo para debugging
+    console.log('Gemini API Response:', JSON.stringify(json, null, 2));
+
+    // Verificar si hay bloqueo por seguridad
+    if (json.promptFeedback && json.promptFeedback.blockReason) {
+      throw new Error(`Contenido bloqueado por seguridad: ${json.promptFeedback.blockReason}`);
+    }
+
     if (!json.candidates || !json.candidates[0]) {
-      throw new Error('Respuesta inválida del modelo');
+      console.error('Respuesta inválida del modelo:', JSON.stringify(json, null, 2));
+      throw new Error('Respuesta inválida del modelo. Verifica los logs para más detalles.');
+    }
+
+    // Verificar si el contenido fue filtrado
+    const candidate = json.candidates[0];
+    if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'RECITATION') {
+      throw new Error(`Contenido filtrado por: ${candidate.finishReason}`);
     }
 
     // Gemini devuelve en: candidates[0].content.parts[0].text
