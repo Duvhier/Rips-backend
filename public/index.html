@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Pacientes - AI Integration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto py-10 px-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 class="text-2xl font-bold text-gray-800">
+                    Pacientes que Llegaron
+                </h1>
+                
+                <div class="flex gap-2">
+                    <!-- Upload Button -->
+                    <label class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition duration-200 cursor-pointer flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Agregar Pantallazo
+                        <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="processImage(this)">
+                    </label>
+
+                    <!-- Export Button -->
+                    <button onclick="exportToCSV()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition duration-200 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Descargar CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status / Info -->
+            <div class="mb-4 text-sm text-gray-600 flex justify-between items-center">
+                <div>
+                    Total de pacientes: <span id="totalPacientes" class="font-semibold">0</span>
+                </div>
+                <div id="loadingIndicator" class="hidden text-blue-600 font-semibold flex items-center gap-2">
+                    <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Procesando imagen con IA...
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mb-4 p-4 bg-red-100 text-red-700 rounded-lg"></div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full border-collapse">
+                    <thead>
+                        <tr class="bg-blue-600 text-white">
+                            <th class="border border-gray-300 px-4 py-3 text-left font-semibold">FECHA</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left font-semibold">HORA</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left font-semibold">NOMBRE</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left font-semibold">IDENTIDAD</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left font-semibold">EDAD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pacientesTableBody">
+                        <!-- Rows will be inserted here -->
+                        <tr class="bg-white">
+                            <td colspan="5" class="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                                Sube una captura de pantalla para extraer los datos
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPacientes = [];
+
+        async function processImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const loading = document.getElementById('loadingIndicator');
+            const errorMsg = document.getElementById('errorMessage');
+            const tableBody = document.getElementById('pacientesTableBody');
+            
+            loading.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            
+            try {
+                const base64 = await convertToBase64(file);
+                // Remove prefix (e.g., "data:image/png;base64,")
+                const base64Data = base64.split(',')[1];
+                const mediaType = file.type;
+
+                const response = await fetch('/api/process-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageData: base64Data, mediaType })
+                });
+
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                currentPacientes = data;
+                renderTable(currentPacientes);
+
+            } catch (error) {
+                console.error('Error:', error);
+                errorMsg.textContent = `Error: ${error.message}`;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+                input.value = ''; // Reset input
+            }
+        }
+
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function renderTable(pacientes) {
+            const tbody = document.getElementById('pacientesTableBody');
+            const totalSpan = document.getElementById('totalPacientes');
+            
+            totalSpan.textContent = pacientes.length;
+            tbody.innerHTML = '';
+
+            if (pacientes.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="bg-white">
+                        <td colspan="5" class="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                            No se encontraron pacientes marcados
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            pacientes.forEach((p, index) => {
+                const rowClass = index % 2 === 0 ? "bg-gray-50" : "bg-white";
+                const row = `
+                    <tr class="${rowClass} hover:bg-gray-100 transition duration-150">
+                        <td class="border border-gray-300 px-4 py-2 text-gray-800">${p.fecha || ''}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-gray-800">${p.hora || ''}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-gray-800 font-medium">${p.nombre || ''}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-gray-800">${p.identidad || ''}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-gray-800">${p.edad || ''}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function exportToCSV() {
+            if (currentPacientes.length === 0) {
+                alert('No hay datos para exportar');
+                return;
+            }
+
+            const headers = ["FECHA", "HORA", "NOMBRE", "IDENTIDAD", "EDAD"];
+            const csvContent = [
+                headers.join(","),
+                ...currentPacientes.map(p => `${p.fecha},${p.hora},${p.nombre},${p.identidad},${p.edad}`)
+            ].join("\n");
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            
+            // Generate filename with date if available
+            const dateStr = currentPacientes[0]?.fecha ? currentPacientes[0].fecha.replace(/\//g, '') : 'export';
+            link.setAttribute("download", `pacientes_llegaron_${dateStr}.csv`);
+            
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
