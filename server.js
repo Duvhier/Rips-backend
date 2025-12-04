@@ -60,10 +60,20 @@ app.post('/api/process-image', async (req, res) => {
             parts: [
               {
                 text: `
-Analiza esta imagen de una agenda médica y extrae ÚNICAMENTE los pacientes 
-que tienen una marca de verificación (✓) en la columna "LLEGO" o que claramente se ve que asistieron.
+Analiza EXHAUSTIVAMENTE esta imagen de una agenda médica fila por fila.
+Tu objetivo es extraer TODOS los pacientes que asistieron, sin omitir ninguno.
 
-Para cada paciente marcado, extrae:
+Criterio de inclusión:
+- Pacientes que tienen una marca de verificación (✓, check, o similar) en la columna "LLEGO".
+- O pacientes donde la casilla "LLEGO" está marcada/rellena.
+
+Instrucciones paso a paso:
+1. Escanea la imagen de arriba a abajo, fila por fila.
+2. Verifica CADA fila. Si la columna "LLEGO" tiene una marca, EXTRAE los datos.
+3. No te detengas hasta llegar al final de la lista.
+4. Asegúrate de contar y extraer TODAS las filas marcadas visualmente.
+
+Para cada paciente identificado, extrae:
 - FECHA (formato: YYYY/MM/DD)
 - HORA (HH:MM)
 - NOMBRE (mayúsculas)
