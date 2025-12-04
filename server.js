@@ -47,7 +47,7 @@ app.post('/api/process-image', async (req, res) => {
     console.log('API Key starts with:', API_KEY.substring(0, 6) + '...');
 
     // Llamada a Google Gemini 1.5 Pro (Mejor razonamiento y visión)
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${API_KEY}`;
 
     console.log('Sending request to Gemini API (Model: gemini-1.5-pro)...');
 
