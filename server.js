@@ -46,10 +46,10 @@ app.post('/api/process-image', async (req, res) => {
     // Log parcial de la clave (solo primeros chars por seguridad)
     console.log('API Key starts with:', API_KEY.substring(0, 6) + '...');
 
-    // Llamada a Google Gemini 2.0 Flash
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    // Llamada a Google Gemini 1.5 Pro (Mejor razonamiento y visión)
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${API_KEY}`;
 
-    console.log('Sending request to Gemini API...');
+    console.log('Sending request to Gemini API (Model: gemini-1.5-pro)...');
 
     const response = await fetch(apiURL, {
       method: 'POST',
@@ -60,18 +60,16 @@ app.post('/api/process-image', async (req, res) => {
             parts: [
               {
                 text: `
-Analiza EXHAUSTIVAMENTE esta imagen de una agenda médica fila por fila.
-Tu objetivo es extraer TODOS los pacientes que asistieron, sin omitir ninguno.
+Analiza esta imagen de una agenda médica. Tu tarea es extraer los datos de los pacientes que ASISTIERON.
 
-Criterio de inclusión:
-- Pacientes que tienen una marca de verificación (✓, check, o similar) en la columna "LLEGO".
-- O pacientes donde la casilla "LLEGO" está marcada/rellena.
+CRITERIO CRÍTICO:
+Debes extraer CADA paciente que tenga una marca de verificación (✓), un "check", o una casilla marcada en la columna "LLEGO".
+La precisión es más importante que la velocidad. NO debes omitir ningún paciente marcado.
 
-Instrucciones paso a paso:
-1. Escanea la imagen de arriba a abajo, fila por fila.
-2. Verifica CADA fila. Si la columna "LLEGO" tiene una marca, EXTRAE los datos.
-3. No te detengas hasta llegar al final de la lista.
-4. Asegúrate de contar y extraer TODAS las filas marcadas visualmente.
+PASOS DE RAZONAMIENTO (Chain of Thought):
+1. Primero, recorre visualmente la columna "LLEGO" de arriba a abajo.
+2. Cuenta mentalmente cuántas casillas tienen marca de verificación. (Deberías encontrar todas las que sean visibles).
+3. Luego, extrae los datos de esas filas específicas.
 
 Para cada paciente identificado, extrae:
 - FECHA (formato: YYYY/MM/DD)
@@ -80,9 +78,15 @@ Para cada paciente identificado, extrae:
 - IDENTIDAD (solo números)
 - EDAD (solo el número)
 
-IMPORTANTE:
-Responde ÚNICAMENTE con un array JSON puro, sin texto externo, sin comentarios, 
-sin explicaciones, sin bloques markdown.
+FORMATO DE RESPUESTA:
+Responde ÚNICAMENTE con un array JSON puro.
+Ejemplo:
+[
+  { "FECHA": "2025/12/02", "HORA": "13:40", "NOMBRE": "JUAN PEREZ", "IDENTIDAD": "123456", "EDAD": "30" },
+  ...
+]
+
+No incluyas texto antes ni después del JSON.
 `
               },
               {
